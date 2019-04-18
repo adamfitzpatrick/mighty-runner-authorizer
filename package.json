@@ -1,0 +1,33 @@
+{
+  "name": "mighty-runner-authorizer",
+  "version": "0.1.0",
+  "description": "API Gateway authorizer lambda for mighty-runner",
+  "main": "index.js",
+  "scripts": {
+    "coverage": "nyc npm run test",
+    "package": "npm ci && npm prune --production && zip -r ./infrastructure/get-lambda.zip . -x *.git* -x *.nyc_output* -x infrastructure\\* && npm i",
+    "postinstall": "cp ./pre-push-hook .git/hooks/pre-push",
+    "tdd": "npm run test -- --watch",
+    "test": "mocha ./**/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/adamfitzpatrick/mighty-runner-authorizer.git"
+  },
+  "author": "Adam Fitzpatrick",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/adamfitzpatrick/mighty-runner-authorizer/issues"
+  },
+  "homepage": "https://github.com/adamfitzpatrick/mighty-runner-authorizer#readme",
+  "devDependencies": {
+    "aws-sdk": "^2.439.0",
+    "chai": "^4.2.0",
+    "chai-as-promised": "^7.1.1",
+    "mocha": "^6.1.3",
+    "nyc": "^14.0.0",
+    "rewire": "^4.0.1",
+    "sinon": "^7.3.2",
+    "sinon-chai": "^3.3.0"
+  }
+}
