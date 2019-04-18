@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "coverage": "nyc npm run test",
-    "package": "npm ci && npm prune --production && zip -r ./infrastructure/get-lambda.zip . -x *.git* -x *.nyc_output* -x infrastructure\\* && npm i",
+    "package": "npm ci && npm prune --production && zip -r ./infrastructure/authorizer-lambda.zip . -x *.git* -x *.nyc_output* -x infrastructure\\* && npm i",
     "postinstall": "cp ./pre-push-hook .git/hooks/pre-push",
     "tdd": "npm run test -- --watch",
     "test": "mocha ./**/*.test.js"
