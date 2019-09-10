@@ -18,7 +18,7 @@ data "template_file" "lambda_cloudwatch_policy" {
     }
 }
 
-resource "aws_iam_role" "authorization-lambda_execution_role" {
+resource "aws_iam_role" "authorizer-lambda_execution_role" {
     name = "${var.function_name}-execution-role"
 
     assume_role_policy = "${data.template_file.lambda_execution_assume_role_policy.rendered}"
@@ -26,23 +26,23 @@ resource "aws_iam_role" "authorization-lambda_execution_role" {
 
 resource "aws_iam_role_policy" "aurhotization-lambda_dynamo_permissions_policy" {
     name   = "${var.function_name}-dynamo-policy"
-    role   = "${aws_iam_role.get-lambda_execution_role.id}"
+    role   = "${aws_iam_role.authorizer-lambda_execution_role.id}"
     policy = "${data.template_file.lambda_dynamo_policy.rendered}"
 }
 
-resource "aws_iam_role_policy" "authorization-lambda_cloudwatch_permissions_policy" {
+resource "aws_iam_role_policy" "authorizer-lambda_cloudwatch_permissions_policy" {
     name   = "${var.function_name}-cloudwatch-policy"
-    role   = "${aws_iam_role.authorization-lambda_execution_role.id}"
+    role   = "${aws_iam_role.authorizer-lambda_execution_role.id}"
     policy = "${data.template_file.lambda_cloudwatch_policy.rendered}"
 }
 
-resource "aws_lambda_function" "authorization-lambda_function" {
-    filename         = "${path.module}/authorization-lambda.zip"
+resource "aws_lambda_function" "authorizer-lambda_function" {
+    filename         = "${path.module}/authorizer-lambda.zip"
     function_name    = "${var.function_name}"
     handler          = "index.handler"
-    source_code_hash = "${filebase64sha256("${path.module}/authorization-lambda.zip")}"
+    source_code_hash = "${filebase64sha256("${path.module}/authorizer-lambda.zip")}"
     runtime          = "nodejs8.10"
-    role             = "${aws_iam_role.authorization-lambda_execution_role.arn}"
+    role             = "${aws_iam_role.authorizer-lambda_execution_role.arn}"
 
     environment {
         variables = {
@@ -53,7 +53,7 @@ resource "aws_lambda_function" "authorization-lambda_function" {
     }
 }
 
-resource "aws_cloudwatch_log_group" "get-lambda_function" {
-  name              = "/aws/lambda/${aws_lambda_function.authorization-lambda_function.function_name}"
+resource "aws_cloudwatch_log_group" "authorizer-lambda_function" {
+  name              = "/aws/lambda/${aws_lambda_function.authorizer-lambda_function.function_name}"
   retention_in_days = "${var.cloudwatch_log_retention_in_days}"
 }

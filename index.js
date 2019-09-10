@@ -1,0 +1,1 @@
+exports.handler = require('./lib/authorizer-lambda')
