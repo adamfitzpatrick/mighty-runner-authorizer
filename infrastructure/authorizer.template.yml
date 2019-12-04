@@ -1,0 +1,78 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Lambda to authorize API calls based on a bearer token in the Authorization header
+Parameters:
+  Environment:
+    Type: String
+    Default: dev
+  FunctionName:
+    Type: String
+    Default: mighty-runner-authorizer
+  InfrastructureStorageBucket:
+    Type: String
+    Default: mighty-runner-infrastructure
+  TableName:
+    Type: String
+    Default: dev-mighty-runner-token
+  PrimaryKeyColumnName:
+    Type: String
+    Default: token
+  AuthorizerCodeArtifact:
+    Type: String
+Resources:
+  ExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join ["-", [!Ref Environment, !Ref FunctionName, execution-role]]
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action:
+          - sts:AssumeRole
+          Principal:
+            Service:
+            - lambda.amazonaws.com
+  DynamoPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Join ["-", [!Ref Environment, !Ref FunctionName, authorizer-dynamo-policy]]
+      Roles:
+      - !Ref ExecutionRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action:
+          - dynamodb:GetItem
+          Resource: "arn:aws:dynamodb:us-west-2:913697957162:table/dev-mighty-runner-token"
+  CloudWatchPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Join ["-", [!Ref Environment, !Ref FunctionName, authorizer-cloudwatch-policy]]
+      Roles:
+      - !Ref ExecutionRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action:
+          - logs:CreateLogGroup
+          - logs:DescribeLogStreams
+          - logs:CreateLogStream
+          - logs:PutLogEvents
+          Resource: "*"
+  AuthorizerLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Join ["-", [!Ref Environment, !Ref FunctionName]]
+      Handler: index.handler
+      Runtime: nodejs10.x
+      Role: !GetAtt ExecutionRole.Arn
+      Code:
+        S3Bucket: !Ref InfrastructureStorageBucket
+        S3Key: !Ref AuthorizerCodeArtifact
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref TableName
+          PRIMARY_KEY_COLUMN_NAME: !Ref PrimaryKeyColumnName
+          REGION: !Ref AWS::Region

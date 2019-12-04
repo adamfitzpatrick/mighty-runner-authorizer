@@ -4,10 +4,10 @@
   "description": "API Gateway authorizer lambda for mighty-runner",
   "main": "index.js",
   "scripts": {
-    "coverage": "nyc yarn test",
-    "package": "yarn && yarn install --production && zip -r ./infrastructure/authorizer-lambda.zip . -x *.git* -x *.nyc_output*  -x coverage\\* -x infrastructure\\* && yarn",
-    "postinstall": "cp ./pre-push-hook .git/hooks/pre-push",
-    "tdd": "yarn test --watch",
+    "coverage": "nyc npm run test",
+    "package": "npm install --production && zip -r ./infrastructure/authorizer-lambda.zip . -x *.git* -x *.nyc_output*  -x coverage\\* -x infrastructure\\* && npm install",
+    "postinstall": "cp ./pre-commit-hook .git/hooks/pre-commit",
+    "tdd": "npm run test --watch",
     "test": "mocha ./**/*.test.js"
   },
   "repository": {

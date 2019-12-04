@@ -1,0 +1,120 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template for CodePipeline instance to build and deploy the application
+Parameters:
+  PipelineName:
+    Type: String
+    Default: authorizer
+  GitHubOAuthToken:
+    Type: String
+Resources:
+  PipelineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join ["-", [!Ref PipelineName, "pipeline-role"]]
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action:
+          - sts:AssumeRole
+          Principal:
+            Service:
+            - codepipeline.amazonaws.com
+  PipelinePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Join ["-", [!Ref PipelineName, "pipeline-role-policy"]]
+      Roles:
+      - !Ref PipelineRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action:
+          - cloudformation:CreateStack
+          - cloudformation:DescribeStacks
+          - cloudformation:UpdateStack
+          - cloudformation:DeleteStack
+          - iam:PassRole
+          - s3:PutObject
+          - s3:GetObject
+          Resource: "*"
+  CloudFormationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join ["-", [!Ref PipelineName, "cloudformation-role"]]
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action:
+          - sts:AssumeRole
+          Principal:
+            Service:
+            - cloudformation.amazonaws.com
+  CloudFormationRolePolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Join ["-", [!Ref PipelineName, "cloudformation-role-policy"]]
+      Roles:
+      - !Ref CloudFormationRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action:
+          - iam:AttachRolePolicy
+          - iam:CreatePolicy
+          - iam:CreateRole
+          - iam:DeleteRole
+          - iam:DeleteRolePolicy
+          - iam:GetRole
+          - iam:PassRole
+          - iam:PutRolePolicy
+          - lambda:GetFunction
+          - lambda:CreateFunction
+          - s3:GetObject
+          Resource: "*"
+  AuthorizerPipeline:
+    Type: AWS::CodePipeline::Pipeline
+    Properties:
+      Name: !Ref PipelineName
+      RestartExecutionOnUpdate: true
+      RoleArn: !GetAtt PipelineRole.Arn
+      ArtifactStore:
+        Location: mighty-runner-infrastructure
+        Type: S3
+      Stages:
+      - Name: Source
+        Actions:
+        - Name: GitHub
+          ActionTypeId:
+            Category: Source
+            Owner: ThirdParty
+            Provider: GitHub
+            Version: 1
+          Configuration:
+            Owner: adamfitzpatrick
+            Repo: mighty-runner-authorizer
+            Branch: feature/switch-to-cloudformation
+            OAuthToken: !Ref GitHubOAuthToken
+          OutputArtifacts:
+          - Name: AuthorizerSource
+      - Name: Deploy
+        Actions:
+        - Name: DeployStack
+          ActionTypeId:
+            Category: Deploy
+            Owner: AWS
+            Provider: CloudFormation
+            Version: 1
+          InputArtifacts:
+          - Name: AuthorizerSource
+          Configuration:
+            ActionMode: REPLACE_ON_FAILURE
+            StackName: dev-mighty-runner-authorizer
+            TemplatePath: AuthorizerSource::infrastructure/authorizer.template.yml
+            RoleArn: !GetAtt CloudFormationRole.Arn
+            Capabilities: CAPABILITY_NAMED_IAM
+            ParameterOverrides: |
+              { "AuthorizerCodeArtifact": { "Fn::GetArtifactAtt" : ["AuthorizerSource", "ObjectKey"] }}

@@ -1,8 +1,0 @@
-#!/usr/bin/env bash
-set -e
-echo "Running pre-push hook..."
-yarn
-yarn coverage
-yarn package
-git add infrastructure/authorizer-lambda.zip
-git commit --amend --no-edit
