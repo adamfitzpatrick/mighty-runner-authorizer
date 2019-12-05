@@ -3,9 +3,13 @@ Description: Template for CodePipeline instance to build and deploy the applicat
 Parameters:
   PipelineName:
     Type: String
-    Default: authorizer
+    Default: mighty-runner-authorizer
   GitHubOAuthToken:
     Type: String
+    NoEcho: true
+  ChangeSetName:
+    Type: String
+    Default: production-change-set
 Resources:
   PipelineRole:
     Type: AWS::IAM::Role
@@ -31,10 +35,14 @@ Resources:
         Statement:
         - Effect: Allow
           Action:
+          - cloudformation:CreateChangeSet
           - cloudformation:CreateStack
-          - cloudformation:DescribeStacks
-          - cloudformation:UpdateStack
+          - cloudformation:DeleteChangeSet
           - cloudformation:DeleteStack
+          - cloudformation:DescribeChangeSet
+          - cloudformation:DescribeStacks
+          - cloudformation:ExecuteChangeSet
+          - cloudformation:UpdateStack
           - iam:PassRole
           - s3:PutObject
           - s3:GetObject
@@ -72,6 +80,7 @@ Resources:
           - iam:PassRole
           - iam:PutRolePolicy
           - lambda:CreateFunction
+          - lambda:DeleteFunction
           - lambda:GetFunction
           - lambda:UpdateFunctionCode
           - s3:GetObject
@@ -101,9 +110,9 @@ Resources:
             OAuthToken: !Ref GitHubOAuthToken
           OutputArtifacts:
           - Name: AuthorizerSource
-      - Name: DeployTest
+      - Name: Review
         Actions:
-        - Name: DeployTestStack
+        - Name: DevDeploy
           ActionTypeId:
             Category: Deploy
             Owner: AWS
@@ -113,9 +122,54 @@ Resources:
           - Name: AuthorizerSource
           Configuration:
             ActionMode: REPLACE_ON_FAILURE
-            StackName: dev-mighty-runner-authorizer
+            StackName: !Join ["-", ["dev", !Ref PipelineName]]
             TemplatePath: AuthorizerSource::infrastructure/authorizer.template.yml
+            TemplateConfiguration: AuthorizerSource::infrastructure/dev-template-config.json
             RoleArn: !GetAtt CloudFormationRole.Arn
             Capabilities: CAPABILITY_NAMED_IAM
             ParameterOverrides: |
               { "AuthorizerCodeArtifact": { "Fn::GetArtifactAtt" : ["AuthorizerSource", "ObjectKey"] }}
+          RunOrder: 1
+        - Name: PrdCreateChangeSet
+          ActionTypeId:
+            Category: Deploy
+            Owner: AWS
+            Provider: CloudFormation
+            Version: 1
+          InputArtifacts:
+          - Name: AuthorizerSource
+          Configuration:
+            ActionMode: CHANGE_SET_REPLACE
+            StackName: !Join ["-", ["prd", !Ref PipelineName]]
+            ChangeSetName: !Ref ChangeSetName
+            TemplatePath: AuthorizerSource::infrastructure/authorizer.template.yml
+            TemplateConfiguration: AuthorizerSource::infrastructure/prd-template-config.json
+            RoleArn: !GetAtt CloudFormationRole.Arn
+            Capabilities: CAPABILITY_NAMED_IAM
+            ParameterOverrides: |
+              { "AuthorizerCodeArtifact": { "Fn::GetArtifactAtt" : ["AuthorizerSource", "ObjectKey"] }}
+          RunOrder: 1
+      - Name: Release
+        Actions:
+        - Name: ApproveForProduction
+          ActionTypeId:
+            Category: Approval
+            Owner: AWS
+            Provider: Manual
+            Version: 1
+          Configuration:
+            CustomData: Approve deployment of authorizer lambda to production?
+          RunOrder: 1
+        - Name: DeployPrd
+          ActionTypeId:
+            Category: Deploy
+            Owner: AWS
+            Provider: CloudFormation
+            Version: 1
+          Configuration:
+            ActionMode: CHANGE_SET_EXECUTE
+            StackName: !Join ["-", ["prd", !Ref PipelineName]]
+            ChangeSetName: !Ref ChangeSetName
+            RoleArn: !GetAtt CloudFormationRole.Arn
+          RunOrder: 2
+
