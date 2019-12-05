@@ -71,8 +71,9 @@ Resources:
           - iam:GetRole
           - iam:PassRole
           - iam:PutRolePolicy
-          - lambda:GetFunction
           - lambda:CreateFunction
+          - lambda:GetFunction
+          - lambda:UpdateFunctionCode
           - s3:GetObject
           Resource: "*"
   AuthorizerPipeline:
@@ -100,9 +101,9 @@ Resources:
             OAuthToken: !Ref GitHubOAuthToken
           OutputArtifacts:
           - Name: AuthorizerSource
-      - Name: Deploy
+      - Name: DeployTest
         Actions:
-        - Name: DeployStack
+        - Name: DeployTestStack
           ActionTypeId:
             Category: Deploy
             Owner: AWS

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 set -e
-echo "Running pre-push hook..."
+echo "Running pre-commit hook..."
 npm install
 npm run coverage
