@@ -43,6 +43,8 @@ Resources:
           - cloudformation:DescribeStacks
           - cloudformation:ExecuteChangeSet
           - cloudformation:UpdateStack
+          - codebuild:BatchGetBuilds
+          - codebuild:StartBuild
           - iam:PassRole
           - s3:PutObject
           - s3:GetObject
@@ -85,6 +87,59 @@ Resources:
           - lambda:UpdateFunctionCode
           - s3:GetObject
           Resource: "*"
+  BuildRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Join ["-", [!Ref PipelineName, "build-role"]]
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action:
+          - sts:AssumeRole
+          Principal:
+            Service:
+            - codebuild.amazonaws.com
+  BuildPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Join ["-", [!Ref PipelineName, "build-role-policy"]]
+      Roles:
+      - !Ref BuildRole
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+        - Effect: Allow
+          Action:
+          - logs:CreateLogStream
+          - logs:CreateLogGroup
+          - logs:PutLogEvents
+          - codebuild:StartBuild
+          - codebuild:UpdateProject
+          - codecommit:GetBranch
+          - codecommit:GetCommit
+          - s3:GetObject
+          - s3:PutObject
+          - s3:PutObjectAcl
+          - s3:DeleteObject
+          Resource: "*"
+  Build:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Ref PipelineName
+      Description: Unit test and coverage checking for mighty-runner-authorizer lambda
+      Artifacts:
+        Type: CODEPIPELINE
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:3.0
+        Type: LINUX_CONTAINER
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+      ServiceRole: !Ref BuildRole
+      Source:
+        Type: CODEPIPELINE
   AuthorizerPipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
@@ -112,6 +167,18 @@ Resources:
           - Name: AuthorizerSource
       - Name: Review
         Actions:
+        - Name: Test
+          ActionTypeId:
+            Category: Build
+            Owner: AWS
+            Provider: CodeBuild
+            Version: 1
+          InputArtifacts:
+          - Name: AuthorizerSource
+          Configuration:
+            ProjectName: !Ref Build
+            PrimarySource: AuthorizerSource
+          RunOrder: 1
         - Name: DevDeploy
           ActionTypeId:
             Category: Deploy
@@ -129,7 +196,7 @@ Resources:
             Capabilities: CAPABILITY_NAMED_IAM
             ParameterOverrides: |
               { "AuthorizerCodeArtifact": { "Fn::GetArtifactAtt" : ["AuthorizerSource", "ObjectKey"] }}
-          RunOrder: 1
+          RunOrder: 2
         - Name: PrdCreateChangeSet
           ActionTypeId:
             Category: Deploy
@@ -148,7 +215,7 @@ Resources:
             Capabilities: CAPABILITY_NAMED_IAM
             ParameterOverrides: |
               { "AuthorizerCodeArtifact": { "Fn::GetArtifactAtt" : ["AuthorizerSource", "ObjectKey"] }}
-          RunOrder: 1
+          RunOrder: 2
       - Name: Release
         Actions:
         - Name: ApproveForProduction

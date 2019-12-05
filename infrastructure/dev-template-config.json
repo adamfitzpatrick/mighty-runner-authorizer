@@ -1,5 +1,6 @@
 {
     "Parameters": {
-        "Environment": "dev"
+        "Environment": "dev",
+        "TableName": "dev-mighty-runner-token"
     }
 }
