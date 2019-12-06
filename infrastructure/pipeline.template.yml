@@ -7,6 +7,9 @@ Parameters:
   GitHubOAuthToken:
     Type: String
     NoEcho: true
+  GitHubRepo:
+    Type: String
+    Default: https://github.com/adamfitzpatrick/mighty-runner-authorizer
   ChangeSetName:
     Type: String
     Default: production-change-set
@@ -123,7 +126,37 @@ Resources:
           - s3:PutObjectAcl
           - s3:DeleteObject
           Resource: "*"
-  Build:
+  BranchBuild:
+    Type: AWS::CodeBuild::Project
+    Properties:
+      Name: !Join ["-", [!Ref PipelineName, "branch"]]
+      Description: Branch build job for mighty-runner-authorizer
+      BadgeEnabled: true
+      Artifacts:
+        Type: NO_ARTIFACTS
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Image: aws/codebuild/standard:3.0
+        Type: LINUX_CONTAINER
+      LogsConfig:
+        CloudWatchLogs:
+          Status: ENABLED
+      ServiceRole: !Ref BuildRole
+      Source:
+        Auth:
+          Type: OAUTH
+        Location: !Ref GitHubRepo
+        Type: GITHUB
+      Triggers:
+        FilterGroups:
+        - - ExcludeMatchedPattern: true
+            Type: HEAD_REF
+            Pattern: \/master$
+          - ExcludeMatchedPattern: false
+            Type: EVENT
+            Pattern: PUSH
+        Webhook: true
+  MasterBuild:
     Type: AWS::CodeBuild::Project
     Properties:
       Name: !Ref PipelineName
@@ -161,7 +194,7 @@ Resources:
           Configuration:
             Owner: adamfitzpatrick
             Repo: mighty-runner-authorizer
-            Branch: wrong
+            Branch: master
             OAuthToken: !Ref GitHubOAuthToken
           OutputArtifacts:
           - Name: AuthorizerSource
@@ -176,7 +209,7 @@ Resources:
           InputArtifacts:
           - Name: AuthorizerSource
           Configuration:
-            ProjectName: !Ref Build
+            ProjectName: !Ref MasterBuild
             PrimarySource: AuthorizerSource
           RunOrder: 1
         - Name: DevDeploy
