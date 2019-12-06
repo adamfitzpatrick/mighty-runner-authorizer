@@ -161,7 +161,7 @@ Resources:
           Configuration:
             Owner: adamfitzpatrick
             Repo: mighty-runner-authorizer
-            Branch: feature/switch-to-cloudformation
+            Branch: wrong
             OAuthToken: !Ref GitHubOAuthToken
           OutputArtifacts:
           - Name: AuthorizerSource
