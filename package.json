@@ -21,7 +21,7 @@
   },
   "homepage": "https://github.com/adamfitzpatrick/mighty-runner-authorizer#readme",
   "devDependencies": {
-    "aws-sdk": "2.439.0",
+    "aws-sdk": "2.814.0",
     "chai": "4.2.0",
     "chai-as-promised": "7.1.1",
     "mocha": "6.2.0",
